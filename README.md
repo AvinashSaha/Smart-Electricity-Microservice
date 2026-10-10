@@ -6,109 +6,271 @@
 ![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-**SDEM (Smart Distributed Electricity Management)** is a smart city electricity platform built as a set of
-independent Spring Boot microservices. Households (citizens) submit smart meter readings, electricity
-providers publish tariffs and price bills, and the city council gets live, city wide reports on consumption,
-renewable energy share and CO2 avoided. A Thymeleaf web front end ties it all together, and every request
-passes through an API gateway backed by a Eureka service registry.
+A microservices-based application for **smart electricity management in the North East of England**.
+Five pilot cities (Newcastle, Sunderland, Durham, Middlesbrough and Darlington) each run their own
+Smart City system with three electricity providers (A, B and C). Citizens and smart meters send meter readings
+to their provider in real time, each city collects and aggregates its providers' data, and a secure web
+dashboard brings every city together into one view of the region.
 
-This project was produced for **KF7014 Advanced Programming (Assessment 1)** at Northumbria University.
+Built for **KF7014 Advanced Programming** (Northumbria University), covering both parts of the brief:
 
-> **Want to run it?** See **[RUNNING.md](RUNNING.md)** for the full step by step run specification
-> (prerequisites, build, start order, Docker, testing and troubleshooting).
+| Part of the brief | What is in this repository |
+|---|---|
+| Individual component: microservices | Citizen, Electricity Provider and Smart City microservices, API gateway, service registry, main program, unit test project, data folder |
+| Group component: front end | Modular web application with authentication and user management, data tables per city and per provider, interactive monthly average charts, integration test project |
+
+> **To run it, see [RUNNING.md](RUNNING.md)** (prerequisites, build, start order, Docker, demo accounts, testing and troubleshooting).
+> The full API reference is in [docs/API.md](docs/API.md).
 
 ---
 
 ## Contents
 
-1. [Features](#features)
-2. [Architecture](#architecture)
-3. [Services](#services)
-4. [Technology stack](#technology-stack)
-5. [Project structure](#project-structure)
-6. [API overview](#api-overview)
-7. [How the services work together](#how-the-services-work-together)
-8. [Business rules](#business-rules)
-9. [Testing](#testing)
-10. [Design decisions](#design-decisions)
-11. [Future improvements](#future-improvements)
-12. [Author and licence](#author-and-licence)
-
----
-
-## Features
-
-**Electricity providers**
-- Register, update and deactivate energy suppliers with unit rate, standing charge and renewable mix
-- Find the cheapest active provider
-- Produce a bill quote for any amount of energy over any number of days
-
-**Citizens (households)**
-- Register households with a UK postcode, smart meter ID and chosen provider (validated against the provider service)
-- Submit cumulative smart meter readings, with checks that readings never go backwards in value or time
-- Calculate consumption between the first and latest reading
-- Generate an itemised bill by calling the provider service
-- Switch provider
-
-**Smart city**
-- Live city report: number of households, total and average consumption, renewable share and estimated CO2 avoided
-- Consumption broken down by provider and by postcode district (for example NE1, NE4, NE6)
-- Save report snapshots to track the city's figures over time
-
-**Platform**
-- Service discovery with Netflix Eureka, so services find each other by name
-- Single entry point through Spring Cloud Gateway with client side load balancing
-- Web front end (Thymeleaf) that only ever talks to the gateway
-- Swagger UI / OpenAPI docs for every business service
-- Consistent JSON error responses (RFC 7807 Problem Details)
-- Health endpoints via Spring Boot Actuator
-- Seed data so the system is useful the moment it starts
-- Unit and integration tests, GitHub Actions CI, Docker Compose deployment
+1. [Architecture](#architecture)
+2. [Projects in the solution](#projects-in-the-solution)
+3. [How data flows](#how-data-flows)
+4. [Front end (group component)](#front-end-group-component)
+5. [Microservices (individual component)](#microservices-individual-component)
+6. [Databases](#databases)
+7. [APIs and versioning](#apis-and-versioning)
+8. [Testing](#testing)
+9. [Security, error handling and best practices](#security-error-handling-and-best-practices)
+10. [Technology stack](#technology-stack)
+11. [Design decisions and limitations](#design-decisions-and-limitations)
+12. [Author, acknowledgements and licence](#author-acknowledgements-and-licence)
 
 ---
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    U([Browser]) --> FE[front-end-app<br/>:8090]
-    C([REST client / Postman]) --> GW
-    FE --> GW[sdem-api-gateway<br/>:8080]
+flowchart TB
+    U([Browser]) -->|HTTPS form login| FE[front-end-app<br/>:8090]
+    FE -->|"REST /smartcity-{city}/api/v1"| GW[sdem-api-gateway<br/>:8080]
 
-    GW -->|/api/providers/**| EP[electricity-provider-app<br/>:8081]
-    GW -->|/api/citizens/**| CI[citizen-app<br/>:8082]
-    GW -->|/api/city/**| SC[smart-city-app<br/>:8083]
+    subgraph CITY["Main program: one block per city (x5)"]
+        CZ["citizen-{city}<br/>100 manual citizens + 50 smart meters per provider"]
+        PA["provider-{city}-a"]
+        PB["provider-{city}-b"]
+        PC["provider-{city}-c"]
+        SC["smartcity-{city}"]
+    end
 
-    CI -->|bill quote, provider check| EP
-    SC -->|consumption for all citizens| CI
-    SC -->|provider list| EP
+    CZ -->|POST readings in real time| GW
+    GW --> PA & PB & PC
+    SC -->|GET monthly totals| GW
+    GW --> SC
 
-    EP --- DB1[(H2 providerdb)]
-    CI --- DB2[(H2 citizendb)]
-    SC --- DB3[(H2 citydb)]
+    PA --- DA[("provider-{city}-a.mv.db")]
+    PB --- DB[("provider-{city}-b.mv.db")]
+    PC --- DC[("provider-{city}-c.mv.db")]
+    SC --- DS[("smartcity-{city}.mv.db")]
+    CZ --- DZ[("citizen-{city}.mv.db")]
 
     REG[service-registry-app<br/>Eureka :8761]
-    GW -. register / discover .-> REG
-    EP -. register .-> REG
-    CI -. register / discover .-> REG
-    SC -. register / discover .-> REG
+    GW -. discovers instances .-> REG
+    CITY -. every instance registers .-> REG
 ```
 
-Each business service owns its own database (the *database per service* pattern), so no service reads
-another service's tables. They share data only through REST calls, resolved by name through Eureka.
+* **All communication between microservices goes through the API gateway.** The gateway discovers every
+  registered instance in Eureka and exposes it as `/{service-id}/**`, for example
+  `/provider-durham-b/api/v1/readings` or `/smartcity-newcastle/api/v1/aggregates`.
+* **Every microservice instance has its own database file** in [`data/`](data).
+* In total the running region has **25 microservice instances** (5 smart city, 15 provider, 5 citizen),
+  plus the registry, the gateway and the front end.
 
 ---
 
-## Services
+## Projects in the solution
 
-| Module | Port | Role |
+| Project | Type | Port(s) | Purpose |
+|---|---|---|---|
+| [`service-registry-app`](service-registry-app) | Eureka server | 8761 | Service discovery; every instance registers here |
+| [`sdem-api-gateway`](sdem-api-gateway) | Spring Cloud Gateway | 8080 | Single entry point, routes `/{service-id}/**` to instances |
+| [`electricity-provider-app`](electricity-provider-app) | Microservice | 81x1 to 81x3 | Receives readings in real time and stores them permanently |
+| [`smart-city-app`](smart-city-app) | Microservice | 81x0 | Requests data from its providers, collates, aggregates and stores it |
+| [`citizen-app`](citizen-app) | Microservice | 81x4 | Simulates smart meters (random readings in a range) and manual citizen entry |
+| [`main-program`](main-program) | Launcher | | Runs the Smart City system: per city 1 smart city, 3 providers, 100 citizens and 50 smart meters per provider |
+| [`unit-tests`](unit-tests) | Testing project | | Unit tests for all microservices (individual component) |
+| [`front-end-app`](front-end-app) | Web application | 8090 | Modular dashboard UI (group component) |
+| [`integration-tests`](integration-tests) | Testing project | | Integration tests of the UI and microservices working together (group component) |
+| [`data`](data) | Data folder | | H2 database files with sample data from one run |
+
+**Port blocks per city** (x = city number): Newcastle 8110 to 8114, Sunderland 8120 to 8124, Durham 8130 to 8134,
+Middlesbrough 8140 to 8144, Darlington 8150 to 8154. In each block: +0 smart city, +1 provider A, +2 provider B,
++3 provider C, +4 citizens.
+
+---
+
+## How data flows
+
+```mermaid
+sequenceDiagram
+    participant M as Smart meter / citizen<br/>(citizen-newcastle)
+    participant G as API gateway
+    participant P as provider-newcastle-a
+    participant S as smartcity-newcastle
+    participant F as Front end
+    M->>G: POST /provider-newcastle-a/api/v1/readings
+    G->>P: forward
+    P->>P: check reading > previous, store reading + consumption
+    loop every 30 seconds
+        S->>G: GET /provider-newcastle-{a,b,c}/api/v1/consumption/monthly
+        G->>P: forward
+        P-->>S: monthly totals (kWh, readings, citizens)
+        S->>S: upsert aggregated totals in its database
+    end
+    F->>G: GET /smartcity-newcastle/api/v1/aggregates?months=12
+    G->>S: forward
+    S-->>F: stored monthly totals per provider
+    F->>F: calculate averages, build table and chart
+```
+
+1. **Citizen microservice.** On the very first run every citizen and smart meter sends 12 months of history
+   (one reading per month with seasonal variation). After that, every tick (30 seconds) each smart meter sends a
+   new reading that is a random amount within the configured range higher than the last, and a random share of
+   the manual citizens type in a new reading. Readings that are not higher than the previous one are rejected.
+2. **Electricity Provider microservice.** Receives each reading at the moment it is sent (real time), validates it
+   against the citizen's previous reading, works out the consumption since that reading and stores it
+   permanently.
+3. **Smart City microservice.** Every 30 seconds requests monthly totals from its three providers, collates them and
+   stores the aggregated totals permanently. If a provider is down, the others are still collected and the
+   provider's last stored figures remain available.
+4. **Front end.** Requests the aggregated totals of each city and **calculates the averages on the fly**. No average
+   is ever stored in a database.
+
+---
+
+## Front end (group component)
+
+| Requirement | How it is met |
+|---|---|
+| User authentication and authorisation | Spring Security form login, BCrypt password hashing, CSRF protection, roles `ADMIN` and `USER`; admins can **create and delete users**; every user can **change their password** |
+| In-memory user store | `InMemoryUserDetailsManager`, seeded with two demo users |
+| Data view: table per city | `/cities/{city}`: one row per month, one column per provider, total, citizens and calculated average per citizen |
+| Data view: table per provider | `/providers/{a,b,c}`: one row per month, one column per city |
+| Visualisation: monthly average of each provider in each city | Line / bar chart on each city page (Chart.js) |
+| Visualisation: monthly average of all cities | Region overview chart, one line per city plus a dashed "All cities" line |
+| Averages calculated, not stored | `AverageCalculator`, `DataViewService`, `VisualisationService` |
+| Modular UI | Reusable Thymeleaf fragments (`layout`, `table`, `chart`); one city module component serves every configured city; services split into data loading, data view and visualisation modules |
+| RESTful communication with the microservices | `SmartCityClient` calls `GET /smartcity-{city}/api/v1/aggregates` through the gateway |
+| Error handling | A city that is down is shown as "Unavailable" while the rest of the page still works; friendly 404 and error pages; form validation messages |
+| No ready-made UI template | Hand written CSS ([`app.css`](front-end-app/src/main/resources/static/css/app.css)) |
+
+**Pages:** sign in, region overview (KPIs, all cities chart, city cards), five city pages, three provider pages,
+change password, and user management (admins only). The period selector switches between 3, 6 and 12 months;
+charts can be switched between line and bar, and legend entries toggle series on and off.
+
+---
+
+## Microservices (individual component)
+
+| Brief requirement | Implementation |
+|---|---|
+| Citizen microservice simulates smart meters (random data in a specified range) and manual citizen input; each reading more than the previous | `SimulationService`, `ReadingGenerator`, `CitizenRegistry`; manual entry API `POST /api/v1/citizens/{id}/readings`; ranges set in `citizen.yml` |
+| Electricity Provider microservice receives data in real time | `POST /api/v1/readings`, stored immediately; one instance per provider per city |
+| Data stored permanently | H2 file databases in `data/` (`ddl-auto: update`, so data survives restarts) |
+| Smart City microservice requests, collates, aggregates and permanently stores data | `AggregationService` (scheduled and on demand), `AggregatedConsumption` entity |
+| Main program: 1 smart city, 3 providers, 100 citizens and 50 smart meters per provider | `MainProgram` and `CityPlan` (all five cities, or `--cities=...`) |
+| API gateway for communication between microservices | `sdem-api-gateway` with Eureka discovery; citizen and smart city services call providers only through it |
+| Each microservice has its own database | One `.mv.db` file per instance |
+| Error and exception handling | `@RestControllerAdvice` per service returning RFC 7807 Problem Details (400, 404, 422, 503) |
+| Testing project with unit tests for all microservices | `unit-tests` (Mockito unit tests and MockMvc controller tests) |
+| Data folder with sample data from one run | `data/` |
+| No external APIs, no datasets | All data is generated by the simulation |
+
+---
+
+## Databases
+
+```mermaid
+erDiagram
+    METER_READINGS {
+        bigint id PK
+        varchar citizen_id
+        varchar meter_type "MANUAL or SMART"
+        decimal reading_kwh "cumulative meter value"
+        decimal consumption_kwh "since previous reading"
+        timestamp recorded_at
+        timestamp received_at
+    }
+    AGGREGATED_CONSUMPTION {
+        bigint id PK
+        varchar provider "A, B or C"
+        varchar period_month "yyyy-MM"
+        decimal total_kwh
+        bigint reading_count
+        bigint citizen_count
+        timestamp collected_at
+    }
+    CITIZENS {
+        varchar id PK "e.g. NEWCASTLE-A-S012"
+        varchar provider_code
+        varchar meter_type
+        decimal last_reading_kwh
+        timestamp last_reading_at
+        boolean backfilled
+    }
+```
+
+* `METER_READINGS` lives in each **provider** database, `AGGREGATED_CONSUMPTION` in each **smart city** database
+  (unique per provider and month) and `CITIZENS` in each **citizen** database. The databases are separate, so the
+  relationships (a citizen's readings, a provider's monthly totals) are kept by id across services, not by foreign keys.
+* The front end's users are held **in memory** only.
+
+---
+
+## APIs and versioning
+
+Every microservice API is versioned under **`/api/v1`**, and the web application shows its own version (1.0.0) and
+the API version it uses in the footer and at `/actuator/info`. Through the gateway:
+
+| Service | Method and path | Purpose |
 |---|---|---|
-| `service-registry-app` | 8761 | Eureka server. Every service registers here; the dashboard lists what is running. |
-| `sdem-api-gateway` | 8080 | Spring Cloud Gateway. Routes `/api/**` to the right service using `lb://` load balancing. |
-| `electricity-provider-app` | 8081 | Providers, tariffs, renewable mix and bill quotes. |
-| `citizen-app` | 8082 | Households, smart meter readings, consumption and bills. |
-| `smart-city-app` | 8083 | City wide reports and saved snapshots. |
-| `front-end-app` | 8090 | Thymeleaf web UI: dashboard, providers, citizens, readings and bills. |
+| Provider | `POST /provider-{city}-{p}/api/v1/readings` | Receive a reading |
+| Provider | `GET /provider-{city}-{p}/api/v1/readings?citizenId=&limit=` | Latest readings |
+| Provider | `GET /provider-{city}-{p}/api/v1/consumption/monthly?months=` | Monthly totals |
+| Provider | `GET /provider-{city}-{p}/api/v1/summary` | All time totals |
+| Smart city | `GET /smartcity-{city}/api/v1/aggregates?months=` | Stored monthly aggregates |
+| Smart city | `GET /smartcity-{city}/api/v1/summary?months=` | Totals per provider and collection status |
+| Smart city | `POST /smartcity-{city}/api/v1/aggregates/collect` | Collect now |
+| Smart city | `GET /smartcity-{city}/api/v1/providers/status` | Last collection result per provider |
+| Citizen | `GET /citizen-{city}/api/v1/citizens?provider=` | List citizens and meters |
+| Citizen | `GET /citizen-{city}/api/v1/citizens/{id}` | One citizen |
+| Citizen | `POST /citizen-{city}/api/v1/citizens/{id}/readings` | Manual entry, forwarded in real time |
+| Citizen | `GET /citizen-{city}/api/v1/simulation/status` | Simulation counters |
+
+Requests, responses and error codes are documented in [docs/API.md](docs/API.md); a Postman collection is in
+[`postman/`](postman). Each microservice also serves Swagger UI at `/swagger-ui.html` on its own port.
+
+---
+
+## Testing
+
+```bash
+mvn verify
+```
+
+| Project | Kind | Covers |
+|---|---|---|
+| `unit-tests` | Unit (individual component) | Provider: monthly aggregation, reading validation, controller status codes. Smart city: collection, upsert, provider failure handling, summaries, routing. Citizen: generator ranges, always increasing readings, history, sender, registry (450 citizens per city), manual entry rules. Main program: options and port plan |
+| `integration-tests` | Integration (group component) | Starts 3 providers, a smart city, a citizen simulation and the front end in one JVM, all talking over real HTTP: simulation to providers, real time manual entry, rejection of lower readings, aggregation, sign in, city and provider pages, a city being down, 404, role based access, create user, change password and delete user |
+| `service-registry-app`, `sdem-api-gateway` | Smoke | Application starts |
+| GitHub workflow *Sample data and end-to-end run* | End to end | Runs registry, gateway, main program for all five cities and the front end; checks data through the gateway and the UI; commits the sample databases |
+
+---
+
+## Security, error handling and best practices
+
+* **Access control:** every page needs a signed in user; user management needs `ADMIN`; passwords are BCrypt hashed;
+  CSRF tokens on every form; session fixation protection; Content Security Policy header.
+* **Data protection:** citizens are identified by generated ids only (no names, addresses or other personal data);
+  readings carry only what billing and planning need.
+* **Error handling:** consistent Problem Detail JSON from every API, meaningful status codes, graceful degradation when
+  a provider or city is down, retry on the next tick for the simulation.
+* **Code quality:** layered packages in every service (`api`, `bean`, `client`, `config`, `entities`, `exception`,
+  `repository`, `service`), DTOs separate from entities, constructor injection, immutable records for data,
+  `BigDecimal` for energy values, Javadoc on public classes, `.editorconfig` for consistent formatting.
 
 ---
 
@@ -117,179 +279,39 @@ another service's tables. They share data only through REST calls, resolved by n
 | Area | Technology |
 |---|---|
 | Language | Java 17 |
-| Framework | Spring Boot 3.3.5 (Web, Data JPA, Validation, Actuator, Thymeleaf) |
-| Microservices | Spring Cloud 2023.0.3: Netflix Eureka, Spring Cloud Gateway, Spring Cloud LoadBalancer |
-| Service to service calls | Spring `RestClient` with `@LoadBalanced` |
-| Persistence | H2 in-memory database per service, Hibernate / JPA |
-| API docs | springdoc-openapi 2.6 (Swagger UI) |
-| Testing | JUnit 5, Mockito, AssertJ, Spring MockMvc |
-| Build | Maven multi-module project |
-| DevOps | Docker, Docker Compose, GitHub Actions |
+| Microservices | Spring Boot 3.3.5, Spring Cloud 2023.0.3 (Netflix Eureka, Spring Cloud Gateway) |
+| Persistence | Spring Data JPA, Hibernate, H2 file databases |
+| Front end | Spring MVC, Thymeleaf, Spring Security, Chart.js 4 (bundled locally) |
+| API docs | springdoc-openapi (Swagger UI) |
+| Testing | JUnit 5, Mockito, AssertJ, Spring MockMvc, Java HttpClient |
+| Build and delivery | Maven multi-module, Docker, Docker Compose, GitHub Actions |
 
 ---
 
-## Project structure
+## Design decisions and limitations
 
-```
-Smart-Electricity-Microservice/
-├── pom.xml                         Parent POM (versions, modules)
-├── service-registry-app/           Eureka server
-├── sdem-api-gateway/               API gateway (routes in application.yml)
-├── electricity-provider-app/
-│   └── src/main/java/com/sdem/provider/
-│       ├── api/                    REST controller
-│       ├── bean/                   Request / response DTOs
-│       ├── entities/               JPA entities
-│       ├── exception/              Custom exceptions + global handler
-│       ├── repository/             Spring Data repositories
-│       └── service/                Business logic
-├── citizen-app/                    Same layered layout (+ config/ for RestClient)
-├── smart-city-app/                 Same layered layout
-├── front-end-app/
-│   ├── src/main/java/com/sdem/web/ api/ (page controllers), bean/, client/ (GatewayClient)
-│   └── src/main/resources/         templates/ (Thymeleaf), static/css/
-├── docs/API.md                     Full endpoint reference
-├── postman/                        Postman collection for every endpoint
-├── scripts/                        start-all.sh / stop-all.sh helpers
-├── Dockerfile                      One image recipe for any module (MODULE build arg)
-├── docker-compose.yml              Runs the whole system
-└── .github/workflows/ci.yml        Build and test on every push
-```
-
-Every business service follows the same layers: **api → service → repository → entities**, with **bean**
-for DTOs so JPA entities are never exposed directly over HTTP.
+* **One codebase per microservice, many instances.** Provider, smart city and citizen are each one project, run as
+  several instances with different settings (city, provider, port). This matches how the providers and cities
+  would deploy the same software.
+* **Main program runs instances inside one JVM.** Each instance is a separate Spring Boot application with its own
+  port, database and registration; running them in one JVM keeps memory use reasonable on a laptop. In production each
+  would be its own process or container.
+* **Gateway routes come from discovery,** so adding a city needs no gateway change.
+* **History on first run.** Monthly charts need months of data, so on the first run the simulation sends 12 months of
+  readings with realistic seasonal variation, then continues in real time.
+* **H2** was chosen because it is embedded (no database server to install) and stores each service's data in a single
+  file that can be committed as sample data.
+* **Limitations:** users are lost when the front end restarts (in-memory store, as the brief requires); service to
+  service calls are not authenticated; the simulation is not a physical model of household demand.
 
 ---
 
-## API overview
+## Author, acknowledgements and licence
 
-All endpoints are reachable through the gateway at `http://localhost:8080`. The full reference with
-request and response examples is in **[docs/API.md](docs/API.md)**.
+**Avinash Saha**, MSc Advanced Computer Science, Northumbria University.
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/providers` | List active providers |
-| GET | `/api/providers/{id}` | Get a provider |
-| GET | `/api/providers/cheapest` | Cheapest active provider |
-| POST | `/api/providers` | Create a provider |
-| PUT | `/api/providers/{id}` | Update a provider |
-| DELETE | `/api/providers/{id}` | Deactivate a provider |
-| GET | `/api/providers/{id}/quote?kwh=&days=` | Bill quote |
-| GET | `/api/citizens` | List citizens |
-| GET | `/api/citizens/{id}` | Get a citizen |
-| POST | `/api/citizens` | Register a citizen |
-| PUT | `/api/citizens/{id}` | Update a citizen |
-| DELETE | `/api/citizens/{id}` | Delete a citizen |
-| PUT | `/api/citizens/{id}/provider/{providerId}` | Switch provider |
-| POST | `/api/citizens/{id}/readings` | Submit a meter reading |
-| GET | `/api/citizens/{id}/readings` | List readings |
-| GET | `/api/citizens/{id}/consumption` | Consumption summary |
-| GET | `/api/citizens/{id}/bill` | Bill (priced by the provider service) |
-| GET | `/api/citizens/consumption` | Consumption for every citizen |
-| GET | `/api/city/summary` | Live city report |
-| GET | `/api/city/providers` | Usage by provider |
-| GET | `/api/city/districts` | Usage by postcode district |
-| POST | `/api/city/snapshots` | Save a snapshot |
-| GET | `/api/city/snapshots` | Snapshot history |
+Generative AI (Claude, by Anthropic) was used to help write code and documentation in this repository, as permitted
+by the module brief provided it is acknowledged.
 
-Swagger UI for each service: `http://localhost:8081/swagger-ui.html`, `:8082/swagger-ui.html`, `:8083/swagger-ui.html`.
-
----
-
-## How the services work together
-
-**Getting a citizen's bill** (`GET /api/citizens/1/bill`):
-
-```mermaid
-sequenceDiagram
-    participant B as Browser / client
-    participant G as API gateway
-    participant C as citizen-app
-    participant R as Eureka
-    participant P as electricity-provider-app
-    B->>G: GET /api/citizens/1/bill
-    G->>R: where is citizen-app?
-    G->>C: forward request
-    C->>C: load readings, work out kWh and days
-    C->>R: where is electricity-provider-app?
-    C->>P: GET /api/providers/{id}/quote?kwh=..&days=..
-    P-->>C: energy cost, standing charge, total
-    C-->>G: consumption + quote
-    G-->>B: JSON bill
-```
-
-**Building the city report** (`GET /api/city/summary`): the smart city service fetches every citizen's
-consumption from `citizen-app` and the provider list from `electricity-provider-app`, then aggregates totals,
-renewable kWh, CO2 avoided, and the per provider and per district breakdowns.
-
-If a downstream service is down, the caller returns **503 Service Unavailable** with a clear message instead of
-an unhandled error, and the front end shows that message on the page.
-
----
-
-## Business rules
-
-| Rule | Where |
-|---|---|
-| Bill = (kWh × unit rate) + (days × standing charge), converted from pence to pounds, rounded half up to 2 dp | `ProviderService.calculate` |
-| Renewable kWh = kWh × provider renewable % | `ProviderService.calculate`, `CityService` |
-| Consumption = latest reading − first reading; days = elapsed time rounded up (minimum 1) | `CitizenService.summarise` |
-| A new reading cannot be lower than, or earlier than, the previous reading | `CitizenService.addReading` |
-| Email and meter ID must be unique; provider must exist in the provider service | `CitizenService.register` |
-| Postcodes must be valid UK format and are stored normalised (`ne45ab` → `NE4 5AB`) | `CitizenRequest`, `CitizenService` |
-| CO2 avoided = renewable kWh × grid carbon factor (0.207 kg/kWh, configurable) | `CityService` |
-| Providers are soft deleted (deactivated) so old bills and reports still resolve | `ProviderService.deactivate` |
-
----
-
-## Testing
-
-```bash
-mvn test
-```
-
-| Module | What is tested |
-|---|---|
-| `electricity-provider-app` | Bill calculation, validation, duplicates (unit); REST endpoints against seeded H2 (integration) |
-| `citizen-app` | Consumption maths, reading rules, postcode normalising (unit); REST endpoints with the provider service mocked (integration) |
-| `smart-city-app` | Aggregation, renewable share, CO2, district grouping (unit); REST endpoints with downstream calls mocked (integration) |
-| `front-end-app` | Every Thymeleaf page renders, including the "gateway down" error state |
-| `service-registry-app`, `sdem-api-gateway` | Application context starts |
-
-The GitHub Actions workflow runs the full build and test suite on every push and pull request.
-
----
-
-## Design decisions
-
-- **Database per service.** Each service has its own H2 database, so services can change their schema and be
-  deployed independently. Data crosses service boundaries only through APIs.
-- **Service discovery instead of fixed URLs.** Services call `http://electricity-provider-app/...` and Eureka plus
-  Spring Cloud LoadBalancer resolve it, so more instances can be started without code changes.
-- **Gateway as the only public entry point.** The front end and external clients use one URL; routing, CORS and
-  cross cutting headers live in one place.
-- **DTOs (`bean` package) separate from entities.** The API contract does not leak the database model, and
-  validation rules sit on the request objects.
-- **`BigDecimal` for money and energy.** Avoids floating point rounding errors in bills.
-- **Problem Details for errors.** Every service returns errors in the same RFC 7807 JSON shape, which the
-  front end reads to show friendly messages.
-- **Seed data.** Each service loads realistic sample data on start up, which makes demos and testing quick.
-
----
-
-## Future improvements
-
-- Replace H2 with PostgreSQL (one schema per service) for persistent storage
-- Add Resilience4j circuit breakers and retries on service to service calls
-- Secure the gateway with Spring Security and OAuth2 / JWT (citizen vs council roles)
-- Publish meter readings as events (Kafka or RabbitMQ) instead of synchronous calls
-- Centralised configuration (Spring Cloud Config) and distributed tracing (Micrometer Tracing + Zipkin)
-- Time of use tariffs and monthly billing periods
-
----
-
-## Author and licence
-
-**Avinash Saha** · MSc Advanced Computer Science, Northumbria University
-
-Released under the [MIT Licence](LICENSE).
+Chart.js is included under the MIT licence (see `front-end-app/src/main/resources/static/js/vendor/`).
+This project is released under the [MIT Licence](LICENSE).

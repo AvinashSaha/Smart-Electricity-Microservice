@@ -32,7 +32,7 @@ jobs:
         run: rm -f data/*.mv.db
 
       - name: Run the whole system and check it end to end
-        run: ./scripts/smoke-test.sh
+        run: ./scripts/smoke-test.sh 2>&1 | tee logs-smoke.txt; exit ${PIPESTATUS[0]}
 
       - name: Upload logs
         if: always()
@@ -44,8 +44,16 @@ jobs:
       - name: Report failure details
         if: failure()
         run: |
-          tail -40 logs/main-program.log | grep -E "ERROR|WARN|Exception" | head -20 | awk '{printf "%s%%0A", $0}' > err.txt || true
-          echo "::error title=Main program log::$(cat err.txt)"
+          report() { # title, file
+            [ -s "$2" ] || return 0
+            msg=$(sed 's/%/%25/g' "$2" | cut -c1-400 | awk '{printf "%s%%0A", $0}')
+            echo "::error title=$1::${msg}"
+          }
+          tail -25 logs-smoke.txt > a.txt || true; report "Smoke test output" a.txt
+          grep -E "ERROR|Exception|Caused by" logs/main-program.log | grep -v "de-registration\|TransportException\|RetryableEureka" | head -25 > b.txt || true; report "Main program errors" b.txt
+          grep -E "WARN" logs/main-program.log | grep -v "de-registration\|RetryableEureka" | head -15 > c.txt || true; report "Main program warnings" c.txt
+          grep -E "ERROR|Exception" logs/gateway.log | head -10 > d.txt || true; report "Gateway errors" d.txt
+          grep -E "ERROR|Exception" logs/front-end.log | head -10 > e.txt || true; report "Front end errors" e.txt
 
       - name: Commit sample databases
         run: |
