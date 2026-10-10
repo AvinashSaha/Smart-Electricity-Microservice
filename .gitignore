@@ -28,9 +28,9 @@ bin/
 .DS_Store
 Thumbs.db
 
-# H2 file databases (if switched from in-memory)
-*.mv.db
+# H2 temporary files (the *.mv.db database files in data/ ARE committed as sample data)
 *.trace.db
+*.lock.db
 
 # Environment files
 .env

@@ -15,6 +15,9 @@ eureka:
   server:
     enable-self-preservation: false
     wait-time-in-ms-when-sync-empty: 0
+    # Publish new registrations quickly so the gateway can route to them within seconds
+    response-cache-update-interval-ms: 5000
+    use-read-only-response-cache: false
 
 management:
   endpoints:
