@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title} + ' | Smart Electricity'">Smart Electricity</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<header th:fragment="nav" class="topbar">
+    <a class="brand" th:href="@{/}">&#9889; Smart Electricity</a>
+    <nav>
+        <a th:href="@{/}">City dashboard</a>
+        <a th:href="@{/providers}">Providers</a>
+        <a th:href="@{/citizens}">Citizens</a>
+    </nav>
+</header>
+
+<div th:fragment="alerts">
+    <div class="alert success" th:if="${message}" th:text="${message}"></div>
+    <div class="alert error" th:if="${error}" th:text="${error}"></div>
+</div>
+
+<footer th:fragment="footer" class="footer">
+    SDEM front end &middot; all data served through the API gateway
+</footer>
+</body>
+</html>

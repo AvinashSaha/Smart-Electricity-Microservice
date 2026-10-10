@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Providers')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: nav}"></header>
+<main class="container">
+    <div th:replace="~{fragments/layout :: alerts}"></div>
+    <h1>Electricity providers</h1>
+
+    <table>
+        <thead>
+        <tr><th>Name</th><th>Unit rate (p/kWh)</th><th>Standing charge (p/day)</th><th>Renewable</th><th></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="p : ${providers}">
+            <td th:text="${p.name()}">Name</td>
+            <td th:text="${p.unitRatePence()}">0</td>
+            <td th:text="${p.standingChargePence()}">0</td>
+            <td th:text="${p.renewablePercent()} + '%'">0%</td>
+            <td>
+                <form method="post" th:action="@{/providers/{id}/deactivate(id=${p.id()})}">
+                    <button type="submit" class="link">Deactivate</button>
+                </form>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(providers)}"><td colspan="5" class="muted">No providers yet.</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Add a provider</h2>
+    <form class="form" method="post" th:action="@{/providers}" th:object="${form}">
+        <label>Name <input type="text" th:field="*{name}" required></label>
+        <label>Unit rate (pence per kWh) <input type="number" step="0.01" min="0.01" th:field="*{unitRatePence}" required></label>
+        <label>Standing charge (pence per day) <input type="number" step="0.01" min="0" th:field="*{standingChargePence}" required></label>
+        <label>Renewable % <input type="number" min="0" max="100" th:field="*{renewablePercent}" required></label>
+        <button type="submit">Add provider</button>
+    </form>
+</main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

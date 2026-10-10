@@ -1,0 +1,68 @@
+# Runs the complete SDEM system:  docker compose up --build
+x-client-env: &client-env
+  EUREKA_URL: http://service-registry-app:8761/eureka
+
+x-health: &health
+  interval: 10s
+  timeout: 5s
+  retries: 20
+  start_period: 30s
+
+services:
+  service-registry-app:
+    build: { context: ., args: { MODULE: service-registry-app } }
+    ports: ["8761:8761"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-sf", "http://localhost:8761/actuator/health"]
+
+  electricity-provider-app:
+    build: { context: ., args: { MODULE: electricity-provider-app } }
+    ports: ["8081:8081"]
+    environment: *client-env
+    depends_on:
+      service-registry-app: { condition: service_healthy }
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/actuator/health"]
+
+  citizen-app:
+    build: { context: ., args: { MODULE: citizen-app } }
+    ports: ["8082:8082"]
+    environment: *client-env
+    depends_on:
+      service-registry-app: { condition: service_healthy }
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-sf", "http://localhost:8082/actuator/health"]
+
+  smart-city-app:
+    build: { context: ., args: { MODULE: smart-city-app } }
+    ports: ["8083:8083"]
+    environment: *client-env
+    depends_on:
+      service-registry-app: { condition: service_healthy }
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-sf", "http://localhost:8083/actuator/health"]
+
+  sdem-api-gateway:
+    build: { context: ., args: { MODULE: sdem-api-gateway } }
+    ports: ["8080:8080"]
+    environment: *client-env
+    depends_on:
+      service-registry-app: { condition: service_healthy }
+      electricity-provider-app: { condition: service_healthy }
+      citizen-app: { condition: service_healthy }
+      smart-city-app: { condition: service_healthy }
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
+
+  front-end-app:
+    build: { context: ., args: { MODULE: front-end-app } }
+    ports: ["8090:8090"]
+    environment:
+      SDEM_GATEWAY_URL: http://sdem-api-gateway:8080
+    depends_on:
+      sdem-api-gateway: { condition: service_healthy }

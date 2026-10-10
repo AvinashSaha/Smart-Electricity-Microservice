@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Citizen')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: nav}"></header>
+<main class="container">
+    <div th:replace="~{fragments/layout :: alerts}"></div>
+    <p><a th:href="@{/citizens}">&larr; All citizens</a></p>
+
+    <th:block th:if="${citizen}">
+        <h1 th:text="${citizen.fullName()}">Citizen</h1>
+        <p class="muted">
+            <span th:text="${citizen.email()}"></span> &middot;
+            <span th:text="${citizen.postcode()}"></span> &middot;
+            meter <span th:text="${citizen.meterId()}"></span> &middot;
+            provider <strong th:text="${providerNames.get(citizen.providerId())} ?: ${citizen.providerId()}"></strong>
+        </p>
+
+        <section class="cards">
+            <div class="card"><span class="label">Consumption</span>
+                <span class="value" th:text="${consumption.kwh()} + ' kWh'">0</span></div>
+            <div class="card"><span class="label">Period</span>
+                <span class="value" th:text="${consumption.days()} + ' days'">0</span></div>
+            <div class="card" th:if="${bill}"><span class="label">Bill total</span>
+                <span class="value" th:text="'£' + ${bill.quote().total()}">0</span></div>
+            <div class="card" th:if="${bill}"><span class="label">Renewable energy</span>
+                <span class="value" th:text="${bill.quote().renewableKwh()} + ' kWh'">0</span></div>
+        </section>
+
+        <div class="alert error" th:if="${billError}" th:text="'Bill unavailable: ' + ${billError}"></div>
+        <p th:if="${bill}" class="muted">
+            Energy £<span th:text="${bill.quote().energyCost()}"></span>
+            + standing charge £<span th:text="${bill.quote().standingCharge()}"></span>
+            from <span th:text="${bill.quote().providerName()}"></span>
+        </p>
+
+        <div class="grid-2">
+            <section>
+                <h2>Meter readings</h2>
+                <table>
+                    <thead><tr><th>Date</th><th>Reading (kWh)</th></tr></thead>
+                    <tbody>
+                    <tr th:each="r : ${readings}">
+                        <td th:text="${#temporals.format(r.readingAt(), 'dd MMM yyyy HH:mm')}">date</td>
+                        <td th:text="${r.readingKwh()}">0</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <form class="form inline" method="post" th:action="@{/citizens/{id}/readings(id=${citizen.id()})}">
+                    <label>New reading (kWh) <input type="number" step="0.01" min="0" name="readingKwh" required></label>
+                    <button type="submit">Submit reading</button>
+                </form>
+            </section>
+            <section>
+                <h2>Switch provider</h2>
+                <form class="form" method="post" th:action="@{/citizens/{id}/provider(id=${citizen.id()})}">
+                    <label>Provider
+                        <select name="providerId">
+                            <option th:each="p : ${providers}" th:value="${p.id()}"
+                                    th:selected="${p.id() == citizen.providerId()}"
+                                    th:text="${p.name()} + ' (' + ${p.unitRatePence()} + 'p/kWh, ' + ${p.renewablePercent()} + '% renewable)'">Provider</option>
+                        </select>
+                    </label>
+                    <button type="submit">Switch</button>
+                </form>
+            </section>
+        </div>
+    </th:block>
+</main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

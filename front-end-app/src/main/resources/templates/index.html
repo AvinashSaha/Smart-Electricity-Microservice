@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('City dashboard')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: nav}"></header>
+<main class="container">
+    <div th:replace="~{fragments/layout :: alerts}"></div>
+
+    <div class="page-head">
+        <h1>City dashboard</h1>
+        <form method="post" th:action="@{/snapshots}">
+            <button type="submit">Save snapshot</button>
+        </form>
+    </div>
+
+    <th:block th:if="${summary}">
+        <section class="cards">
+            <div class="card"><span class="label">Citizens</span>
+                <span class="value" th:text="${summary.citizenCount()}">0</span></div>
+            <div class="card"><span class="label">Total consumption</span>
+                <span class="value" th:text="${#numbers.formatDecimal(summary.totalKwh(), 1, 'COMMA', 0, 'POINT')} + ' kWh'">0</span></div>
+            <div class="card"><span class="label">Average per citizen</span>
+                <span class="value" th:text="${#numbers.formatDecimal(summary.averageKwhPerCitizen(), 1, 'COMMA', 0, 'POINT')} + ' kWh'">0</span></div>
+            <div class="card"><span class="label">Renewable share</span>
+                <span class="value" th:text="${summary.renewableSharePercent()} + '%'">0%</span></div>
+            <div class="card"><span class="label">CO&#8322; avoided</span>
+                <span class="value" th:text="${#numbers.formatDecimal(summary.co2AvoidedKg(), 1, 'COMMA', 0, 'POINT')} + ' kg'">0</span></div>
+        </section>
+
+        <div class="grid-2">
+            <section>
+                <h2>By provider</h2>
+                <table>
+                    <thead><tr><th>Provider</th><th>Citizens</th><th>kWh</th><th>Renewable</th></tr></thead>
+                    <tbody>
+                    <tr th:each="p : ${summary.byProvider()}">
+                        <td th:text="${p.providerName()}">Name</td>
+                        <td th:text="${p.citizens()}">0</td>
+                        <td th:text="${p.kwh()}">0</td>
+                        <td th:text="${p.renewablePercent()} + '%'">0%</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+            <section>
+                <h2>By postcode district</h2>
+                <table>
+                    <thead><tr><th>District</th><th>Citizens</th><th>kWh</th><th>Average kWh</th></tr></thead>
+                    <tbody>
+                    <tr th:each="d : ${summary.byDistrict()}">
+                        <td th:text="${d.district()}">NE4</td>
+                        <td th:text="${d.citizens()}">0</td>
+                        <td th:text="${d.kwh()}">0</td>
+                        <td th:text="${d.averageKwh()}">0</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+        </div>
+        <p class="muted" th:text="'Generated ' + ${#temporals.format(summary.generatedAt(), 'dd MMM yyyy HH:mm')}"></p>
+    </th:block>
+</main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>
