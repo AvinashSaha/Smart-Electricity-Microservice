@@ -12,7 +12,7 @@
 
     <artifactId>electricity-provider-app</artifactId>
     <name>electricity-provider-app</name>
-    <description>Electricity Provider microservice</description>
+    <description>Electricity Provider microservice: receives citizen and smart meter readings in real time</description>
 
     <dependencies>
         <dependency>
@@ -44,11 +44,6 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -57,6 +52,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <classifier>exec</classifier>
+                </configuration>
             </plugin>
         </plugins>
     </build>

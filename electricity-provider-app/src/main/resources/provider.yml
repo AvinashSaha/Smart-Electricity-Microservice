@@ -1,0 +1,47 @@
+# Electricity Provider microservice. One instance = one provider in one city.
+# Override city, code and port per instance, e.g.
+#   --sdem.provider.city=durham --sdem.provider.code=b --server.port=8132
+sdem:
+  data-dir: ./data
+  provider:
+    city: newcastle
+    code: a
+
+server:
+  port: 8111
+
+spring:
+  application:
+    name: provider-${sdem.provider.city}-${sdem.provider.code}
+  datasource:
+    # Permanent storage: one database file per provider instance in the data folder
+    url: jdbc:h2:file:${sdem.data-dir}/${spring.application.name};DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+      settings:
+        web-allow-others: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

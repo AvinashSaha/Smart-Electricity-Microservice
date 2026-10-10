@@ -1,17 +1,17 @@
 package com.sdem.city.bean;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
-public record CitySummary(
-        LocalDateTime generatedAt,
-        long citizenCount,
-        BigDecimal totalKwh,
-        BigDecimal averageKwhPerCitizen,
-        BigDecimal renewableKwh,
-        BigDecimal renewableSharePercent,
-        BigDecimal co2AvoidedKg,
-        List<ProviderUsage> byProvider,
-        List<DistrictUsage> byDistrict) {
+/**
+ * Headline figures for the city, built from the stored aggregates.
+ *
+ * @param city      city name
+ * @param totalKwh  total energy over the stored months
+ * @param providers per provider totals and status
+ */
+public record CitySummary(String city, BigDecimal totalKwh, List<ProviderTotal> providers) {
+
+    public record ProviderTotal(String provider, BigDecimal totalKwh, long readingCount, ProviderStatus status) {
+    }
 }

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${city.name()})}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main">
+        <div th:replace="~{fragments/layout :: alerts}"></div>
+        <header class="page-head">
+            <div>
+                <p class="eyebrow">City module</p>
+                <h1 th:text="${city.name()}">City</h1>
+            </div>
+            <div th:replace="~{fragments/layout :: range('/cities/' + ${city.id()}, ${months})}"></div>
+        </header>
+
+        <div class="alert bad" role="alert" th:unless="${load.available()}"
+             th:text="${load.error()} + '. Showing no data for this city until it is back.'"></div>
+        <div class="alert info" th:if="${load.available() and table.isEmpty()}">
+            No data has been collected for this city yet. The smart city service collects from its providers every 30 seconds.
+        </div>
+
+        <section th:replace="~{fragments/chart :: line('cityChart', ${chart})}"></section>
+        <section class="card">
+            <div th:replace="~{fragments/table :: pivot(${table})}"></div>
+        </section>
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+    </main>
+</div>
+<script th:src="@{/js/vendor/chart.umd.js}"></script>
+<script th:src="@{/js/charts.js}"></script>
+</body>
+</html>

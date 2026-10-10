@@ -1,15 +1,20 @@
 package com.sdem.citizen.repository;
 
 import com.sdem.citizen.entities.Citizen;
+import com.sdem.citizen.entities.MeterType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface CitizenRepository extends JpaRepository<Citizen, Long> {
+public interface CitizenRepository extends JpaRepository<Citizen, String> {
 
-    boolean existsByEmailIgnoreCase(String email);
+    List<Citizen> findByMeterTypeOrderById(MeterType meterType);
 
-    boolean existsByMeterId(String meterId);
+    List<Citizen> findByProviderCodeOrderById(String providerCode);
 
-    List<Citizen> findByProviderId(Long providerId);
+    List<Citizen> findByBackfilledFalseOrderById();
+
+    long countByMeterType(MeterType meterType);
+
+    long countByBackfilledFalse();
 }

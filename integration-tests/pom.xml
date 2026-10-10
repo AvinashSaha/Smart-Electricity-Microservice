@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.sdem</groupId>
+        <artifactId>smart-electricity-microservice</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>integration-tests</artifactId>
+    <name>integration-tests</name>
+    <description>Group component: integration tests that run the microservices and front end together</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.sdem</groupId>
+            <artifactId>electricity-provider-app</artifactId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sdem</groupId>
+            <artifactId>smart-city-app</artifactId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sdem</groupId>
+            <artifactId>citizen-app</artifactId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sdem</groupId>
+            <artifactId>front-end-app</artifactId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>integration-tests</finalName>
+    </build>
+</project>

@@ -6,19 +6,13 @@ spring:
     name: sdem-api-gateway
   cloud:
     gateway:
-      routes:
-        - id: electricity-provider-app
-          uri: lb://electricity-provider-app
-          predicates:
-            - Path=/api/providers/**
-        - id: citizen-app
-          uri: lb://citizen-app
-          predicates:
-            - Path=/api/citizens/**
-        - id: smart-city-app
-          uri: lb://smart-city-app
-          predicates:
-            - Path=/api/city/**
+      # Every microservice instance registered in Eureka gets a route automatically:
+      #   http://localhost:8080/{service-id}/api/v1/...  ->  that instance
+      # e.g. /provider-newcastle-a/api/v1/readings or /smartcity-durham/api/v1/aggregates
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
       default-filters:
         - AddResponseHeader=X-SDEM-Gateway, sdem-api-gateway
       globalcors:
@@ -32,6 +26,7 @@ eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+    registry-fetch-interval-seconds: 5
   instance:
     prefer-ip-address: true
 

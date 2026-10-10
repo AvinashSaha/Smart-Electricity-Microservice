@@ -1,0 +1,46 @@
+# North East Smart Electricity web application (group component)
+server:
+  port: 8090
+
+spring:
+  application:
+    name: front-end-app
+  thymeleaf:
+    cache: false
+
+sdem:
+  frontend:
+    version: 1.0.0
+    api-version: v1
+    # Every REST call goes through the API gateway to /smartcity-{city}/api/v1/...
+    gateway-url: ${SDEM_GATEWAY_URL:http://localhost:8080}
+    months: 12
+    cities:
+      - {id: newcastle, name: Newcastle}
+      - {id: sunderland, name: Sunderland}
+      - {id: durham, name: Durham}
+      - {id: middlesbrough, name: Middlesbrough}
+      - {id: darlington, name: Darlington}
+    providers:
+      - {code: A, name: Provider A}
+      - {code: B, name: Provider B}
+      - {code: C, name: Provider C}
+    # Initial users of the in-memory user store. Change these passwords for any real use.
+    users:
+      - {username: admin, password: admin123, role: ADMIN}
+      - {username: viewer, password: viewer123, role: USER}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: North East Smart Electricity
+    version: ${sdem.frontend.version}
+    api-version: ${sdem.frontend.api-version}

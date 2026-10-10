@@ -17,15 +17,20 @@
     <packaging>pom</packaging>
 
     <name>Smart Electricity Microservice</name>
-    <description>Smart Distributed Electricity Management (SDEM) built as Spring Boot microservices</description>
+    <description>Smart electricity management for the North East region, built as Spring Boot microservices with a web front end</description>
 
     <modules>
+        <!-- Individual component: microservices -->
         <module>service-registry-app</module>
         <module>sdem-api-gateway</module>
         <module>electricity-provider-app</module>
-        <module>citizen-app</module>
         <module>smart-city-app</module>
+        <module>citizen-app</module>
+        <module>main-program</module>
+        <module>unit-tests</module>
+        <!-- Group component: front end and integration tests -->
         <module>front-end-app</module>
+        <module>integration-tests</module>
     </modules>
 
     <properties>

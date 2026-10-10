@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--/* Data view module: renders a PivotTable (city by provider, or provider by city). */-->
+<body>
+<div th:fragment="pivot(table)" class="table-wrap">
+    <table class="data">
+        <caption th:text="${table.title()}">Table</caption>
+        <thead>
+        <tr>
+            <th scope="col">Month</th>
+            <th scope="col" class="num" th:each="c : ${table.columns()}" th:text="${c} + ' (kWh)'">Column</th>
+            <th scope="col" class="num">Total (kWh)</th>
+            <th scope="col" class="num">Citizens</th>
+            <th scope="col" class="num">Avg per citizen (kWh)</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="r : ${table.rows()}">
+            <th scope="row" th:text="${r.label()}">Month</th>
+            <td class="num" th:each="v : ${r.values()}"
+                th:text="${v != null} ? ${#numbers.formatDecimal(v, 1, 'COMMA', 1, 'POINT')} : '-'">0</td>
+            <td class="num strong" th:text="${#numbers.formatDecimal(r.totalKwh(), 1, 'COMMA', 1, 'POINT')}">0</td>
+            <td class="num" th:text="${r.citizens()}">0</td>
+            <td class="num" th:text="${r.averagePerCitizen() != null} ? ${#numbers.formatDecimal(r.averagePerCitizen(), 1, 'COMMA', 2, 'POINT')} : '-'">0</td>
+        </tr>
+        </tbody>
+        <tfoot>
+        <tr th:with="t=${table.totals()}">
+            <th scope="row">Total</th>
+            <td class="num" th:each="v : ${t.values()}"
+                th:text="${v != null} ? ${#numbers.formatDecimal(v, 1, 'COMMA', 1, 'POINT')} : '-'">0</td>
+            <td class="num" th:text="${#numbers.formatDecimal(t.totalKwh(), 1, 'COMMA', 1, 'POINT')}">0</td>
+            <td class="num">-</td>
+            <td class="num" th:text="${t.averagePerCitizen() != null} ? ${#numbers.formatDecimal(t.averagePerCitizen(), 1, 'COMMA', 2, 'POINT')} : '-'">0</td>
+        </tr>
+        </tfoot>
+    </table>
+    <p class="note">Avg per citizen = total kWh ÷ citizens who sent readings that month. The total row shows the mean monthly kWh per citizen over the period.</p>
+</div>
+</body>
+</html>

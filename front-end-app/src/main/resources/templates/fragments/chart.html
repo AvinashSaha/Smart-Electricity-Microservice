@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--/* Data visualisation module: an interactive Chart.js line chart fed from a ChartData object. */-->
+<body>
+<section th:fragment="line(id, chart)" class="card chart-card">
+    <div class="chart-head">
+        <h2 th:text="${chart.title()}">Chart</h2>
+        <div class="chart-tools" role="group" aria-label="Chart type">
+            <button type="button" class="chip active" th:attr="data-chart=${id},data-type='line'">Line</button>
+            <button type="button" class="chip" th:attr="data-chart=${id},data-type='bar'">Bar</button>
+        </div>
+    </div>
+    <div class="chart-box">
+        <canvas th:id="${id}" role="img" th:attr="aria-label=${chart.title()}"></canvas>
+    </div>
+    <p class="note">Click a legend entry to hide or show it. Hover a point to see the exact value.</p>
+    <script th:inline="javascript">
+        window.sdemCharts = window.sdemCharts || {};
+        window.sdemCharts[/*[[${id}]]*/ 'chart'] = /*[[${chart}]]*/ null;
+    </script>
+</section>
+</body>
+</html>

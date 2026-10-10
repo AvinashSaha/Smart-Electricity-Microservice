@@ -1,17 +1,16 @@
 package com.sdem.citizen.bean;
 
 import com.sdem.citizen.entities.Citizen;
+import com.sdem.citizen.entities.MeterType;
 
-public record CitizenResponse(
-        Long id,
-        String fullName,
-        String email,
-        String postcode,
-        String meterId,
-        Long providerId) {
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public record CitizenResponse(String id, String provider, MeterType meterType, BigDecimal lastReadingKwh,
+                              LocalDateTime lastReadingAt) {
 
     public static CitizenResponse from(Citizen c) {
-        return new CitizenResponse(c.getId(), c.getFullName(), c.getEmail(),
-                c.getPostcode(), c.getMeterId(), c.getProviderId());
+        return new CitizenResponse(c.getId(), c.getProviderCode(), c.getMeterType(), c.getLastReadingKwh(),
+                c.getLastReadingAt());
     }
 }

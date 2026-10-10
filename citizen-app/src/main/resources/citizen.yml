@@ -1,0 +1,59 @@
+# Citizen microservice (simulation). One instance per city, e.g. --sdem.simulation.city=durham --server.port=8134
+sdem:
+  data-dir: ./data
+  simulation:
+    city: newcastle
+    providers: [a, b, c]
+    manual-per-provider: 100      # citizens entering readings by hand, per provider
+    smart-per-provider: 50        # smart meters, per provider
+    smart-increment-min: 0.002    # kWh added by a smart meter per tick (data range)
+    smart-increment-max: 0.020
+    manual-increment-min: 0.5     # kWh added when a citizen enters a reading
+    manual-increment-max: 5.0
+    manual-submit-chance: 0.05    # share of manual citizens that submit on each tick
+    backfill-months: 12           # months of history sent on the very first run
+    monthly-min-kwh: 180
+    monthly-max-kwh: 320
+    consumption-factor: 1.0
+    provider-factors: {a: 1.0, b: 0.92, c: 1.08}
+    tick-interval: PT30S
+    initial-delay: PT25S
+  routing:
+    # Readings are sent to the providers through the API gateway
+    gateway-url: ${SDEM_GATEWAY_URL:http://localhost:8080}
+
+server:
+  port: 8114
+
+spring:
+  application:
+    name: citizen-${sdem.simulation.city}
+  datasource:
+    url: jdbc:h2:file:${sdem.data-dir}/${spring.application.name};DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

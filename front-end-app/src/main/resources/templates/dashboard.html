@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Region overview')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main">
+        <div th:replace="~{fragments/layout :: alerts}"></div>
+        <header class="page-head">
+            <div>
+                <p class="eyebrow">North East region</p>
+                <h1>Region overview</h1>
+            </div>
+            <div th:replace="~{fragments/layout :: range('/', ${months})}"></div>
+        </header>
+
+        <section class="kpis">
+            <div class="kpi"><span class="kpi-label">Total consumption</span>
+                <span class="kpi-value" th:text="${#numbers.formatDecimal(regionTotal, 1, 'COMMA', 0, 'POINT')} + ' kWh'">0</span>
+                <span class="kpi-sub" th:text="'last ' + ${months} + ' months'"></span></div>
+            <div class="kpi"><span class="kpi-label">Monthly average per citizen</span>
+                <span class="kpi-value" th:text="${regionAverage != null} ? ${#numbers.formatDecimal(regionAverage, 1, 'COMMA', 1, 'POINT')} + ' kWh' : '-'">0</span>
+                <span class="kpi-sub">all cities and providers</span></div>
+            <div class="kpi"><span class="kpi-label">Cities reporting</span>
+                <span class="kpi-value" th:text="${citiesOnline} + ' / ' + ${#lists.size(cards)}">0</span>
+                <span class="kpi-sub">smart city services reachable</span></div>
+        </section>
+
+        <section th:replace="~{fragments/chart :: line('regionChart', ${chart})}"></section>
+
+        <h2 class="section-title">Cities</h2>
+        <section class="city-grid">
+            <a class="card city-card" th:each="card : ${cards}" th:href="@{/cities/{id}(id=${card.load().city().id()})}">
+                <span class="city-name" th:text="${card.load().city().name()}">City</span>
+                <span th:if="${card.load().available()}" class="status up">Reporting</span>
+                <span th:unless="${card.load().available()}" class="status down">Unavailable</span>
+                <span class="city-figure" th:text="${#numbers.formatDecimal(card.totals().totalKwh(), 1, 'COMMA', 0, 'POINT')} + ' kWh'">0</span>
+                <span class="city-sub" th:text="${card.totals().averagePerCitizen() != null} ? 'avg ' + ${#numbers.formatDecimal(card.totals().averagePerCitizen(), 1, 'COMMA', 1, 'POINT')} + ' kWh per citizen per month' : 'no data yet'"></span>
+            </a>
+        </section>
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+    </main>
+</div>
+<script th:src="@{/js/vendor/chart.umd.js}"></script>
+<script th:src="@{/js/charts.js}"></script>
+</body>
+</html>

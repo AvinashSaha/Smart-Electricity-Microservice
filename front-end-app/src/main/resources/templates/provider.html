@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${provider.name()})}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main">
+        <div th:replace="~{fragments/layout :: alerts}"></div>
+        <header class="page-head">
+            <div>
+                <p class="eyebrow">Electricity provider</p>
+                <h1 th:text="${provider.name()}">Provider</h1>
+            </div>
+            <div th:replace="~{fragments/layout :: range('/providers/' + ${#strings.toLowerCase(provider.code())}, ${months})}"></div>
+        </header>
+        <div class="alert bad" role="alert" th:each="u : ${unavailable}" th:text="${u.error()}"></div>
+        <section class="card">
+            <div th:replace="~{fragments/table :: pivot(${table})}"></div>
+        </section>
+        <footer th:replace="~{fragments/layout :: footer}"></footer>
+    </main>
+</div>
+</body>
+</html>
