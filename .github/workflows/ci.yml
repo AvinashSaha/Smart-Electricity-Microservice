@@ -24,7 +24,17 @@ jobs:
           cache: maven
 
       - name: Build and run all tests
-        run: mvn -B clean verify
+        run: mvn -B clean verify 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+
+      - name: Report build errors as annotations
+        if: failure()
+        run: |
+          grep -E "^\[ERROR\]|Tests run:.*Fail|expected|Caused by" build.log | grep -vE "Re-run Maven|For more information|Help 1|full stack trace|-> \[Help" | head -80 > errors.txt || true
+          split -l 20 errors.txt part_ || true
+          for f in part_*; do
+            msg=$(sed 's/%/%25/g' "$f" | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Build errors::${msg}"
+          done
 
       - name: Upload test reports
         if: always()
