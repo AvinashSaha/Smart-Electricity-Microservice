@@ -19,6 +19,8 @@ Built for **KF7014 Advanced Programming** (Northumbria University), covering bot
 | Individual component: microservices | Citizen, Electricity Provider and Smart City microservices, API gateway, service registry, main program, unit test project, data folder |
 | Group component: front end | Modular web application with authentication and user management, data tables per city and per provider, interactive monthly average charts, integration test project |
 
+![Region overview](docs/screenshots/02-region-overview.png)
+
 > **To run it, see [RUNNING.md](RUNNING.md)** (prerequisites, build, start order, Docker, demo accounts, testing and troubleshooting).
 > The full API reference is in [docs/API.md](docs/API.md).
 
@@ -156,6 +158,13 @@ sequenceDiagram
 | RESTful communication with the microservices | `SmartCityClient` calls `GET /smartcity-{city}/api/v1/aggregates` through the gateway |
 | Error handling | A city that is down is shown as "Unavailable" while the rest of the page still works; friendly 404 and error pages; form validation messages |
 | No ready-made UI template | Hand written CSS ([`app.css`](front-end-app/src/main/resources/static/css/app.css)) |
+
+| City module (Newcastle) | Provider across cities | User management |
+|---|---|---|
+| ![City page](docs/screenshots/03-city-newcastle.png) | ![Provider page](docs/screenshots/04-provider-b.png) | ![Manage users](docs/screenshots/05-manage-users.png) |
+
+Screenshots are captured automatically from a real run of the whole system by the *Sample data and end-to-end run*
+workflow.
 
 **Pages:** sign in, region overview (KPIs, all cities chart, city cards), five city pages, three provider pages,
 change password, and user management (admins only). The period selector switches between 3, 6 and 12 months;

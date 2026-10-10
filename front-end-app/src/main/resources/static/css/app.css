@@ -24,7 +24,7 @@ h1 { font-size: 1.7rem; margin: 0; }
 h2 { font-size: 1.05rem; margin: 0 0 12px; }
 
 /* Layout */
-.shell { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; background: linear-gradient(90deg, var(--nav) 250px, var(--bg) 250px); }
 .main { padding: 28px 32px 16px; min-width: 0; }
 .sidebar { background: var(--nav); color: var(--nav-ink); padding: 22px 16px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
@@ -111,7 +111,7 @@ input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 3px 
 
 /* Small screens */
 @media (max-width: 860px) {
-    .shell { grid-template-columns: 1fr; }
+    .shell { grid-template-columns: 1fr; background: var(--bg); }
     .sidebar { position: static; height: auto; }
     .sidebar nav { flex-direction: row; flex-wrap: wrap; }
     .nav-heading { width: 100%; }

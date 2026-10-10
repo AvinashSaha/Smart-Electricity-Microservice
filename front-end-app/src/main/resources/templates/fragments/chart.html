@@ -13,7 +13,7 @@
     <div class="chart-box">
         <canvas th:id="${id}" role="img" th:attr="aria-label=${chart.title()}"></canvas>
     </div>
-    <p class="note">Click a legend entry to hide or show it. Hover a point to see the exact value.</p>
+    <p class="note">Click a legend entry to hide or show it. Hover a point to see the exact value. The latest month is month to date, so it is lower until the month ends.</p>
     <script th:inline="javascript">
         (function () {
             var id = /*[[${id}]]*/ 'chart';
