@@ -15,8 +15,12 @@
     </div>
     <p class="note">Click a legend entry to hide or show it. Hover a point to see the exact value.</p>
     <script th:inline="javascript">
-        window.sdemCharts = window.sdemCharts || {};
-        window.sdemCharts[/*[[${id}]]*/ 'chart'] = /*[[${chart}]]*/ null;
+        (function () {
+            var id = /*[[${id}]]*/ 'chart';
+            var data = /*[[${chart}]]*/ null;
+            window.sdemCharts = window.sdemCharts || {};
+            window.sdemCharts[id] = data;
+        }());
     </script>
 </section>
 </body>
