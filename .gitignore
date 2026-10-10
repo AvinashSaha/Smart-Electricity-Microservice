@@ -34,3 +34,5 @@ Thumbs.db
 
 # Environment files
 .env
+node_modules/
+package-lock.json

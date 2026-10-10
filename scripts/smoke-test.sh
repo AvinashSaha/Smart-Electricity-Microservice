@@ -60,4 +60,8 @@ echo "$PAGE" | grep -q "Newcastle by provider" || { echo "City page missing tabl
 DASH=$(curl -sf -c "$JAR" -b "$JAR" http://localhost:8090/)
 echo "$DASH" | grep -q "5 / 5" || { echo "Not all cities reporting on dashboard"; exit 1; }
 echo "  dashboard shows 5 / 5 cities reporting"
+if [[ "${SCREENSHOTS:-0}" == "1" ]]; then
+  echo "Capturing screenshots..."
+  node scripts/screenshots.mjs
+fi
 echo "Smoke test passed."
