@@ -57,3 +57,7 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  level:
+    com.netflix: WARN

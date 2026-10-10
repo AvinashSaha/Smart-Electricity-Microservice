@@ -12,9 +12,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 /**
  * Main program: simulates the Smart City system.
@@ -41,25 +38,21 @@ public final class MainProgram {
 
     private final List<ConfigurableApplicationContext> running = new CopyOnWriteArrayList<>();
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         LaunchOptions options = LaunchOptions.parse(args);
         new MainProgram().start(options);
     }
 
-    /** Starts every selected city in parallel and registers a shutdown hook to stop them. */
-    public void start(LaunchOptions options) throws Exception {
+    /**
+     * Starts every selected city, one after another, and registers a shutdown
+     * hook to stop them. Instances are started sequentially because Spring Boot
+     * initialises the shared logging system on each start, which is not safe to
+     * do from several threads at once.
+     */
+    public void start(LaunchOptions options) {
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop, "sdem-shutdown"));
-        ExecutorService pool = Executors.newFixedThreadPool(options.cities().size());
-        try {
-            List<Future<?>> futures = new ArrayList<>();
-            for (CityPlan city : options.cities()) {
-                futures.add(pool.submit(() -> startCity(city, options)));
-            }
-            for (Future<?> f : futures) {
-                f.get();
-            }
-        } finally {
-            pool.shutdown();
+        for (CityPlan city : options.cities()) {
+            startCity(city, options);
         }
         LOG.info("Smart City system running for {} with {} microservice instances",
                 options.cities().stream().map(CityPlan::id).toList(), running.size());
